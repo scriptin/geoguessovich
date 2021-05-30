@@ -1,12 +1,18 @@
 :root {
     --base-width: 300px;
-    --bg-color: #e5e9fc;
-    --bg-light-color: #ecf0fa;
-    --bg-white-color: #fff;
-    --border-color: #b2b4c1;
-    --main-color: #061528;
-    --lighter-color: #2f3440;
-    --hightlight-color: #002f5c;
+    --input-border-radius: 6px;
+    --input-border-width: 2px;
+    --input-autocomplete-offset: -5px;
+
+    --bg-color-primary: #d1e7c8;
+    --bg-color-secondary: #e7e7e7;
+    --bg-color-input: #edf5ec;
+    --border-color-normal: #b4c1b2;
+    --border-color-hightlight: #002f5c;
+    --text-color-primary: #061528;
+    --text-color-secondary: #2f3440;
+    --kbd-color-border: grey;
+    --kbd-color-bg: lightgrey;
 }
 
 body {
@@ -19,14 +25,14 @@ body {
     align-content: flex-start;
     align-items: flex-start;
 
-    background-color: var(--bg-color);
+    background-color: var(--bg-color-primary);
 }
 
 .loading {
     width: var(--base-width);
     margin-top: 1rem;
     height: 7px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-color-normal);
 }
 
 .progress-bar {
@@ -35,7 +41,7 @@ body {
     line-height: 1px;
     height: 5px;
     border: 0;
-    background-color: var(--hightlight-color);
+    background-color: var(--border-color-hightlight);
 }
 
 .hide {
@@ -52,11 +58,11 @@ body {
     row-gap: 0;
     padding-top: 1rem;
 
-    color: var(--main-color);
+    color: var(--text-color-primary);
 }
 
 .question {
-    color: var(--lighter-color);
+    color: var(--text-color-secondary);
     font-size: 0.8rem;
 }
 
@@ -73,22 +79,22 @@ body {
 
 .input-label {
     font-size: 0.8rem;
-    color: var(--lighter-color);
+    color: var(--text-color-secondary);
 }
 
 .country-input {
     width: 100%;
     padding: 0.8rem 1rem;
     box-sizing: border-box;
-    border: 2px solid var(--border-color);
-    border-radius: 6px;
+    border: var(--input-border-width) solid var(--border-color-normal);
+    border-radius: var(--input-border-radius);
     outline: none;
-    background: var(--bg-white-color);
+    background: var(--bg-color-input);
 }
 
 .country-input:focus {
     outline: none;
-    border-color: var(--hightlight-color);
+    border-color: var(--border-color-hightlight);
 }
 
 .autocomplete-container {
@@ -98,7 +104,12 @@ body {
 .autocomplete {
     display: block;
     position: absolute;
+    top: var(--input-autocomplete-offset);
     width: var(--base-width);
+    border: var(--input-border-width) solid var(--border-color-hightlight);
+    border-top-width: 0;
+    border-bottom-left-radius: var(--input-border-radius);
+    border-bottom-right-radius: var(--input-border-radius);
 }
 
 .autocomplete-item {
@@ -110,18 +121,26 @@ body {
     align-items: center;
     column-gap: 0.5rem;
 
-    background: var(--bg-white-color);
-    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-color-input);
     padding: 0.5rem;
 }
 
+.autocomplete-item:not(:last-child) {
+    border-bottom: 1px solid var(--border-color-normal);
+}
+
+.autocomplete-item:last-child {
+    border-bottom-left-radius: var(--input-border-radius);
+    border-bottom-right-radius: var(--input-border-radius);
+}
+
 .autocomplete-item:focus {
-    background: var(--border-color);
+    background: var(--border-color-normal);
     outline: none;
 }
 
 .autocomplete-item.nothing-found {
-    color: var(--lighter-color);
+    color: var(--text-color-secondary);
 }
 
 .autocomplete-item kbd {
@@ -131,16 +150,17 @@ body {
     width: 1rem;
     text-align: center;
 
-    border: 1px solid grey;
+    border: 1px solid var(--kbd-color-border);
+    box-shadow: 1px 1px 0 var(--kbd-color-border);
     border-radius: 2px;
-    background: var(--bg-light-color);
-    color: var(--lighter-color);
+    background: var(--kbd-color-bg);
+    color: var(--text-color-primary);
     font-family: monospace;
 }
 
 .autocomplete-item code {
-    background: var(--bg-light-color);
-    color: var(--main-color);
+    background: var(--bg-color-secondary);
+    color: var(--text-color-primary);
     font-family: monospace;
     font-size: 0.9rem;
     padding: 0 2px;

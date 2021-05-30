@@ -30,11 +30,11 @@ async function loadCitiesData(countryCodes, progressBar) {
     return cities;
 }
 
-function createAutocompleteItem(countryData, ordinalNumber, countryInput) {
+function createAutocompleteItem(countryCode, countryData, ordinalNumber, countryInput) {
     const element = document.createElement('div');
     element.classList.add('autocomplete-item');
 
-    if (!countryData) {
+    if (!countryCode) {
         element.classList.add('nothing-found');
         element.appendChild(document.createTextNode('Nothing found'));
     } else {
@@ -146,10 +146,12 @@ function setUpCountryInput(countryInput, autocomplete, countryCodes, countries) 
                 || !!names.find(n => n.toLowerCase().includes(value));
         }).slice(0, 9); // only take first 9 to have 1-digit ordinal numbers
         autocomplete.innerHTML = '';
+        autocomplete.style.display = 'block';
         if (matchingCodes.length > 0) {
             matchingCodes.forEach((code, index) => {
                 autocomplete.appendChild(
                     createAutocompleteItem(
+                        code,
                         countries[code],
                         index + 1,
                         countryInput,
@@ -157,7 +159,9 @@ function setUpCountryInput(countryInput, autocomplete, countryCodes, countries) 
                 );
             });
         } else if (!valueIsEmpty) {
-            autocomplete.appendChild(createAutocompleteItem(null));
+            autocomplete.appendChild(createAutocompleteItem(false));
+        } else {
+            autocomplete.style.display = 'none';
         }
     });
 }

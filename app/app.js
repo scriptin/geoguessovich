@@ -30,7 +30,7 @@ async function loadCitiesData(countryCodes, progressBar) {
     return cities;
 }
 
-function createAutocompleteItem(countryData, ordinalNumber) {
+function createAutocompleteItem(countryData, ordinalNumber, countryInput) {
     const element = document.createElement('div');
     element.classList.add('autocomplete-item');
 
@@ -52,6 +52,14 @@ function createAutocompleteItem(countryData, ordinalNumber) {
         const namesEl = document.createElement('span');
         namesEl.appendChild(document.createTextNode(allNames));
         element.appendChild(namesEl);
+
+        element.setAttribute('tabindex', '0');
+        element.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                element.blur();
+                countryInput.focus();
+            }
+        });
     }
 
     return element;
@@ -91,11 +99,17 @@ window.addEventListener('DOMContentLoaded', async () => {
                 || domain.startsWith(value)
                 || domain === `.${value}`
                 || !!names.find(n => n.toLowerCase().includes(value));
-        }).slice(0, 9);
+        }).slice(0, 9); // only take first 9 to have 1-digit ordinal numbers
         autocomplete.innerHTML = '';
         if (matchingCodes.length > 0) {
             matchingCodes.forEach((code, index) => {
-                autocomplete.appendChild(createAutocompleteItem(countries[code], index + 1));
+                autocomplete.appendChild(
+                    createAutocompleteItem(
+                        countries[code],
+                        index + 1,
+                        countryInput,
+                    )
+                );
             });
         } else if (!valueIsEmpty) {
             autocomplete.appendChild(createAutocompleteItem(null));

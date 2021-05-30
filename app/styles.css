@@ -115,6 +115,11 @@ body {
     padding: 0.5rem;
 }
 
+.autocomplete-item:focus {
+    background: var(--border-color);
+    outline: none;
+}
+
 .autocomplete-item.nothing-found {
     color: var(--lighter-color);
 }

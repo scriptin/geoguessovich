@@ -201,7 +201,7 @@ function setUpCountryInput(game) {
     });
 
     countryInput.addEventListener('keydown', (e) => {
-        if (!/^\d$/.test(e.key)) {
+        if (!/^\d$/.test(e.key) && e.key !== 'Enter') {
             // Early exit if not a number
             return;
         }
@@ -213,6 +213,11 @@ function setUpCountryInput(game) {
         if (hotKeys.includes(e.key)) {
             const selectedOption = parseInt(e.key, 10) - 1;
             makeGuess(game, matchingCodes[selectedOption]);
+            e.target.value = '';
+            updateAutocomplete('');
+            e.preventDefault();
+        } else if (e.key === 'Enter' && matchingCodes.length === 1) {
+            makeGuess(game, matchingCodes[0]);
             e.target.value = '';
             updateAutocomplete('');
             e.preventDefault();

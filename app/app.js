@@ -135,6 +135,11 @@ function updateUI(game) {
         game.previousGuesses.forEach((guess, index) => {
             const element = document.createElement('div');
             element.classList.add('history-item');
+            if (index === 0) {
+                setTimeout(() => {
+                    element.classList.add('first');
+                }, 10);
+            }
 
             const cityName = document.createElement('strong');
             cityName.appendChild(document.createTextNode(guess.cityName));

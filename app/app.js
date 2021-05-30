@@ -138,37 +138,44 @@ function newQuestion(game) {
     updateUI(game);
 }
 
-function makeGuess(game, guessCountryCode, cityNameDisplay) {
+function makeGuess(game, guessCountryCode) {
     game.previousGuesses.unshift({
         cityName: game.cityName,
         country: {
-            name: game.countries[game.countryCode][1],
+            name: game.countries[game.country.code][1],
             code: guessCountryCode,
         },
         guessedCountryName: game.countries[guessCountryCode][1],
-        correct: guessCountryCode === game.countryCode,
+        correct: guessCountryCode === game.country.code,
     });
     if (game.previousGuesses.length > GUESSES_HISTORY_LENGTH) {
         game.previousGuesses.shift();
     }
-    newQuestion(game, cityNameDisplay);
+    newQuestion(game);
 }
 
 function setUpCountryInput(game) {
     const { countryInput, autocomplete } = game.elements;
-    countryInput.addEventListener('input', (e) => {
-        const value = e.target.value
-            .toLowerCase()
-            .trim()
-            .replaceAll(/\s{2,}/gi, ' ');
-        const valueIsEmpty = value === '' || value === '.';
-        const matchingCodes = valueIsEmpty ? [] : game.countryCodes.filter(code => {
+
+    const cleanInputValue = (inputValue) => inputValue
+        .toLowerCase()
+        .trim()
+        .replaceAll(/\s{2,}/gi, ' ');
+
+    const getMatchingCodes = (value) => {
+        return game.countryCodes.filter(code => {
             const [domain, ...names] = game.countries[code];
             return code.startsWith(value)
                 || domain.startsWith(value)
                 || domain === `.${value}`
                 || !!names.find(n => n.toLowerCase().includes(value));
         }).slice(0, 9); // only take first 9 to have 1-digit ordinal numbers
+    };
+
+    const updateAutocomplete = (inputValue) => {
+        const value = cleanInputValue(inputValue);
+        const valueIsEmpty = value === '' || value === '.';
+        const matchingCodes = valueIsEmpty ? [] : getMatchingCodes(value);
         autocomplete.innerHTML = '';
         autocomplete.style.display = 'block';
         if (matchingCodes.length > 0) {
@@ -187,7 +194,30 @@ function setUpCountryInput(game) {
         } else {
             autocomplete.style.display = 'none';
         }
+    }
+
+    countryInput.addEventListener('input', (e) => {
+        updateAutocomplete(e.target.value);
     });
+
+    countryInput.addEventListener('keydown', (e) => {
+        if (!/^\d$/.test(e.key)) {
+            // Early exit if not a number
+            return;
+        }
+        const value = cleanInputValue(e.target.value);
+        const valueIsEmpty = value === '' || value === '.';
+        const matchingCodes = valueIsEmpty ? [] : getMatchingCodes(value);
+        const hotKeys = [...Array(matchingCodes.length).keys()]
+            .map((index) => (index + 1).toString(10));
+        if (hotKeys.includes(e.key)) {
+            const selectedOption = parseInt(e.key, 10) - 1;
+            makeGuess(game, matchingCodes[selectedOption]);
+            e.target.value = '';
+            updateAutocomplete('');
+            e.preventDefault();
+        }
+    })
 }
 
 window.addEventListener('DOMContentLoaded', async () => {

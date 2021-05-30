@@ -1,6 +1,8 @@
 :root {
     --base-width: 300px;
-    --bg-color: #ebefff;
+    --bg-color: #e5e9fc;
+    --bg-light-color: #ecf0fa;
+    --bg-white-color: #fff;
     --border-color: #b2b4c1;
     --main-color: #061528;
     --lighter-color: #2f3440;
@@ -55,6 +57,7 @@ body {
 
 .question {
     color: var(--lighter-color);
+    font-size: 0.8rem;
 }
 
 .city-name {
@@ -68,18 +71,74 @@ body {
     width: var(--base-width);
 }
 
-.input-container input {
+.input-label {
+    font-size: 0.8rem;
+    color: var(--lighter-color);
+}
+
+.country-input {
     width: 100%;
     padding: 0.8rem 1rem;
     box-sizing: border-box;
     border: 2px solid var(--border-color);
     border-radius: 6px;
     outline: none;
+    background: var(--bg-white-color);
 }
 
-.input-container input:focus {
+.country-input:focus {
     outline: none;
     border-color: var(--hightlight-color);
+}
+
+.autocomplete-container {
+    position: relative;
+}
+
+.autocomplete {
+    display: block;
+    position: absolute;
+    width: var(--base-width);
+}
+
+.autocomplete-item {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-content: flex-start;
+    align-items: center;
+    column-gap: 0.5rem;
+
+    background: var(--bg-white-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem;
+}
+
+.autocomplete-item.nothing-found {
+    color: var(--lighter-color);
+}
+
+.autocomplete-item kbd {
+    font-size: 0.7rem;
+    line-height: 1rem;
+    height: 1rem;
+    width: 1rem;
+    text-align: center;
+
+    border: 1px solid grey;
+    border-radius: 2px;
+    background: var(--bg-light-color);
+    color: var(--lighter-color);
+    font-family: monospace;
+}
+
+.autocomplete-item code {
+    background: var(--bg-light-color);
+    color: var(--main-color);
+    font-family: monospace;
+    font-size: 0.9rem;
+    padding: 0 2px;
 }
 
 .statistics {

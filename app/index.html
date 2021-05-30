@@ -17,8 +17,19 @@
         <small class="question">Which country is this city/town located in?</small>
         <h1 class="city-name">City name</h1>
         <p class="input-container">
-            <input type="text" name="county">
+            <label for="county-input" class="input-label">
+                Country name, domain, or iso2 code
+            </label>
+            <input
+                id="county-input"
+                class="country-input"
+                type="text"
+                placeholder="USA, US, United States, .us"
+            >
         </p>
+        <div class="autocomplete-container">
+            <div id="autocomplete" class="autocomplete"></div>
+        </div>
         <p class="statistics">
             50% correct
         </p>

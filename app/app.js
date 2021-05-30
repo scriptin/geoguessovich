@@ -128,7 +128,38 @@ function getRandomCityName(cities) {
 
 function updateUI(game) {
     console.log(game);
-    game.elements.cityNameDisplay.textContent = game.cityName;
+    const { cityNameDisplay, historyDisplay } = game.elements;
+    cityNameDisplay.textContent = game.cityName;
+    if (game.previousGuesses.length > 0) {
+        historyDisplay.innerHTML = '';
+        game.previousGuesses.forEach((guess, index) => {
+            const element = document.createElement('div');
+            element.classList.add('history-item');
+
+            const cityName = document.createElement('strong');
+            cityName.appendChild(document.createTextNode(guess.cityName));
+            element.appendChild(cityName);
+
+            const icon = document.createElement('span');
+            icon.classList.add('icon');
+            icon.appendChild(document.createTextNode(guess.correct ? '✅' : '❌'));
+            element.appendChild(icon);
+
+            if (!guess.correct) {
+                const incorrectGuess = document.createElement('span');
+                incorrectGuess.classList.add('incorrect-guess');
+                incorrectGuess.appendChild(document.createTextNode(guess.guessedCountryName));
+                element.appendChild(incorrectGuess);
+            }
+
+            const correctGuess = document.createElement('span');
+            correctGuess.classList.add('correct-guess');
+            correctGuess.appendChild(document.createTextNode(guess.country.name));
+            element.appendChild(correctGuess);
+
+            historyDisplay.append(element);
+        });
+    }
 }
 
 function newQuestion(game) {
@@ -156,7 +187,7 @@ function makeGuess(game, guessCountryCode) {
         correct: guessCountryCode === game.country.code,
     });
     if (game.previousGuesses.length > GUESSES_HISTORY_LENGTH) {
-        game.previousGuesses.shift();
+        game.previousGuesses.pop();
     }
     newQuestion(game);
 }
@@ -236,6 +267,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const countryInput = document.getElementById('county-input');
     const autocomplete = document.getElementById('autocomplete');
     const cityNameDisplay = document.getElementById('city-name');
+    const historyDisplay = document.getElementById('history');
 
     progressBar.style.width = '0%';
     loading.classList.remove('hide');
@@ -266,6 +298,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             countryInput,
             autocomplete,
             cityNameDisplay,
+            historyDisplay,
         },
     };
 

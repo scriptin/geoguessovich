@@ -1,5 +1,5 @@
 :root {
-    --base-width: 300px;
+    --base-width: 400px;
     --input-border-radius: 6px;
     --input-border-width: 2px;
     --input-autocomplete-offset: -5px;
@@ -10,7 +10,7 @@
     --border-color-normal: #b4c1b2;
     --border-color-hightlight: #002f5c;
     --text-color-primary: #061528;
-    --text-color-secondary: #2f3440;
+    --text-color-secondary: #3f424c;
     --kbd-color-border: grey;
     --kbd-color-bg: lightgrey;
 }
@@ -102,6 +102,7 @@ body {
 }
 
 .autocomplete {
+    z-index: 100;
     display: block;
     position: absolute;
     top: var(--input-autocomplete-offset);
@@ -166,6 +167,39 @@ body {
     padding: 0 2px;
 }
 
-.statistics {
+.history {
     margin-top: 0.5rem;
+    max-width: var(--base-width);
+}
+
+.history-item {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-content: flex-start;
+    align-items: center;
+    column-gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.history-item:nth-child(2) {
+    opacity: 0.8;
+}
+.history-item:nth-child(3) {
+    opacity: 0.6;
+}
+.history-item:nth-child(4) {
+    opacity: 0.4;
+}
+.history-item:nth-child(5) {
+    opacity: 0.2;
+}
+
+.history-item .incorrect-guess {
+    text-decoration: line-through;
+}
+
+.history-item .icon {
+    font-size: 0.8rem;
+    line-height: 0.8rem;
 }

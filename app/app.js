@@ -33,7 +33,8 @@ async function loadCitiesData(countryCodes, progressBar) {
     return cities;
 }
 
-function createAutocompleteItem(countryCode, countryData, ordinalNumber, countryInput) {
+function createAutocompleteItem(game, countryCode, ordinalNumber) {
+    const { countryInput, autocomplete } = game.elements;
     const element = document.createElement('div');
     element.classList.add('autocomplete-item');
 
@@ -41,7 +42,7 @@ function createAutocompleteItem(countryCode, countryData, ordinalNumber, country
         element.classList.add('nothing-found');
         element.appendChild(document.createTextNode('Nothing found'));
     } else {
-        const [domain, name, ...otherNames] = countryData;
+        const [domain, name, ...otherNames] = game.countries[countryCode];
 
         const kbdEl = document.createElement('kbd');
         kbdEl.appendChild(document.createTextNode(ordinalNumber))
@@ -60,6 +61,12 @@ function createAutocompleteItem(countryCode, countryData, ordinalNumber, country
         element.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 element.blur();
+                countryInput.focus();
+            } else if (e.key === 'Enter') {
+                makeGuess(game, countryCode);
+                autocomplete.innerHTML = '';
+                autocomplete.style.display = 'none';
+                countryInput.value = '';
                 countryInput.focus();
             }
         });
@@ -142,8 +149,8 @@ function makeGuess(game, guessCountryCode) {
     game.previousGuesses.unshift({
         cityName: game.cityName,
         country: {
+            code: game.country.code,
             name: game.countries[game.country.code][1],
-            code: guessCountryCode,
         },
         guessedCountryName: game.countries[guessCountryCode][1],
         correct: guessCountryCode === game.country.code,
@@ -177,22 +184,19 @@ function setUpCountryInput(game) {
         const valueIsEmpty = value === '' || value === '.';
         const matchingCodes = valueIsEmpty ? [] : getMatchingCodes(value);
         autocomplete.innerHTML = '';
-        autocomplete.style.display = 'block';
+        autocomplete.style.display = 'none';
         if (matchingCodes.length > 0) {
+            autocomplete.style.display = 'block';
             matchingCodes.forEach((code, index) => {
                 autocomplete.appendChild(
-                    createAutocompleteItem(
-                        code,
-                        game.countries[code],
-                        index + 1,
-                        countryInput,
-                    )
+                    createAutocompleteItem(game, code, index + 1)
                 );
             });
         } else if (!valueIsEmpty) {
-            autocomplete.appendChild(createAutocompleteItem(false));
-        } else {
-            autocomplete.style.display = 'none';
+            autocomplete.style.display = 'block';
+            autocomplete.appendChild(
+                createAutocompleteItem(game, false)
+            );
         }
     }
 
@@ -255,7 +259,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         countryCode: '',
         countryName: '',
         previousGuesses: [
-            // { cityName: string, country: { name: string, code: string }, guessedCountryName: string, correct: boolean }
+            // { cityName: string, country: { code: string, name: string }, guessedCountryName: string, correct: boolean }
             // most recent goes first
         ],
         elements: {

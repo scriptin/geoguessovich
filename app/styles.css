@@ -1,0 +1,87 @@
+:root {
+    --base-width: 300px;
+    --bg-color: #ebefff;
+    --border-color: #b2b4c1;
+    --main-color: #061528;
+    --lighter-color: #2f3440;
+    --hightlight-color: #002f5c;
+}
+
+body {
+    font-family: sans-serif;
+    font-size: 12pt;
+    line-height: 1.4em;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-content: flex-start;
+    align-items: flex-start;
+
+    background-color: var(--bg-color);
+}
+
+.loading {
+    width: var(--base-width);
+    margin-top: 1rem;
+    height: 7px;
+    border: 1px solid var(--border-color);
+}
+
+.progress-bar {
+    content: ' ';
+    font-size: 1px;
+    line-height: 1px;
+    height: 5px;
+    border: 0;
+    background-color: var(--hightlight-color);
+}
+
+.hide {
+    display: none !important;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-content: center;
+    align-items: flex-start;
+    column-gap: 0;
+    row-gap: 0;
+    padding-top: 1rem;
+
+    color: var(--main-color);
+}
+
+.question {
+    color: var(--lighter-color);
+}
+
+.city-name {
+    font-weight: bold;
+    font-size: 2rem;
+    line-height: 1.4em;
+    margin-bottom: 0.5rem;
+}
+
+.input-container {
+    width: var(--base-width);
+}
+
+.input-container input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    box-sizing: border-box;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    outline: none;
+}
+
+.input-container input:focus {
+    outline: none;
+    border-color: var(--hightlight-color);
+}
+
+.statistics {
+    margin-top: 0.5rem;
+}

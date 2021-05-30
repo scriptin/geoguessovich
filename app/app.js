@@ -65,28 +65,73 @@ function createAutocompleteItem(countryData, ordinalNumber, countryInput) {
     return element;
 }
 
-window.addEventListener('DOMContentLoaded', async () => {
-    const loading = document.getElementById('loading');
-    const progressBar = loading.getElementsByClassName('progress-bar')[0];
-    const app = document.getElementById('app');
+/**
+ * Get a random value, with a probability of getting it
+ * proportional to its weight.
+ *
+ * @param probabilities Array of [value, weight]
+ * @returns {*} A random value
+ */
+function getRandomProportional(probabilities) {
+    const total = probabilities.reduce((sum, [_value, p]) => sum + p , 0);
+    const r = Math.random() * total;
+    let runningSum = 0;
+    for (let [value, p] of probabilities) {
+        runningSum += p;
+        if (runningSum >= r) {
+            return value;
+        }
+    }
+}
 
-    progressBar.style.width = '0%';
-    loading.classList.remove('hide');
-    app.classList.add('hide');
+/**
+ * Get a random country code, with a probability of getting it
+ * proportional to number of cities in it,
+ * excluding the codes which were used recently.
+ *
+ * @param countryCodes Array of country codes
+ * @param cities Object: code -> array of cities
+ * @param recentCodes Array of recently used codes
+ * @returns {*} A random code
+ */
+function getRandomCountryCode(countryCodes, cities, recentCodes) {
+    const probabilities = countryCodes.map(code => {
+        if (recentCodes.includes(code)) {
+            return [code, 0];
+        }
+        return [code, cities[code].length];
+    }).filter(([_country, nCities]) => nCities > 0);
+    return getRandomProportional(probabilities);
+}
 
-    const countries = await loadCountriesData(progressBar);
-    const countryCodes = Object.keys(countries)
-        .filter(code => !['_comment', 'vi', 'cx'].includes(code))
-        .sort();
+/**
+ * Get a random city, with a probability of getting it
+ * proportional to its population.
+ *
+ * @param cities Array of [cityName, population]
+ * @returns {*} A random city name
+ */
+function getRandomCityName(cities) {
+    const probabilities = cities.filter(([_city, population]) => population > 0);
+    return getRandomProportional(probabilities);
+}
 
-    const cities = await loadCitiesData(countryCodes, progressBar);
+function newQuestion(gameState, countryCodes, countries, cities) {
+    const countryCode = getRandomCountryCode(
+        countryCodes,
+        cities,
+        gameState.previousGuesses.slice(0, 3).map(g => g.country.code),
+    );
+    gameState.cityName = getRandomCityName(cities[countryCode]);
+    gameState.countryCode = countryCode;
+}
 
-    loading.classList.add('hide');
-    app.classList.remove('hide');
+function updateUI(gameState, cityNameDisplay) {
+    console.log(gameState);
+    cityNameDisplay.textContent = gameState.cityName;
+}
 
-    const countryInput = document.getElementById('county-input');
-    const autocomplete = document.getElementById('autocomplete');
-
+function setUpCountryInput(countryInput, autocomplete, countryCodes, countries) {
     countryInput.addEventListener('input', (e) => {
         const value = e.target.value
             .toLowerCase()
@@ -115,4 +160,40 @@ window.addEventListener('DOMContentLoaded', async () => {
             autocomplete.appendChild(createAutocompleteItem(null));
         }
     });
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+    const loading = document.getElementById('loading');
+    const progressBar = loading.getElementsByClassName('progress-bar')[0];
+    const app = document.getElementById('app');
+    const countryInput = document.getElementById('county-input');
+    const autocomplete = document.getElementById('autocomplete');
+    const cityNameDisplay = document.getElementById('city-name');
+
+    progressBar.style.width = '0%';
+    loading.classList.remove('hide');
+    app.classList.add('hide');
+
+    const countries = await loadCountriesData(progressBar);
+    const countryCodes = Object.keys(countries)
+        .filter(code => !['_comment', 'vi', 'cx'].includes(code))
+        .sort();
+
+    const cities = await loadCitiesData(countryCodes, progressBar);
+
+    loading.classList.add('hide');
+    app.classList.remove('hide');
+
+    const gameState = {
+        cityName: '',
+        countryCode: null,
+        previousGuesses: [
+            // { city: string, country: { name: string, code: string }, correct: boolean }
+            // most recent goes first
+        ],
+    };
+
+    newQuestion(gameState, countryCodes, countries, cities);
+    updateUI(gameState, cityNameDisplay);
+    setUpCountryInput(countryInput, autocomplete, countryCodes, countries);
 });

@@ -1,3 +1,6 @@
+const GUESSES_HISTORY_LENGTH = 5;
+const MAX_PREVIOUS_GUESSES_NO_REPEAT = 3;
+
 async function loadCountriesData(progressBar) {
     const response = await fetch('countries.json');
     const countries = await response.json();
@@ -116,30 +119,51 @@ function getRandomCityName(cities) {
     return getRandomProportional(probabilities);
 }
 
-function newQuestion(gameState, countryCodes, countries, cities) {
+function updateUI(game) {
+    console.log(game);
+    game.elements.cityNameDisplay.textContent = game.cityName;
+}
+
+function newQuestion(game) {
     const countryCode = getRandomCountryCode(
-        countryCodes,
-        cities,
-        gameState.previousGuesses.slice(0, 3).map(g => g.country.code),
+        game.countryCodes,
+        game.cities,
+        game.previousGuesses.slice(0, MAX_PREVIOUS_GUESSES_NO_REPEAT).map(g => g.country.code),
     );
-    gameState.cityName = getRandomCityName(cities[countryCode]);
-    gameState.countryCode = countryCode;
+    game.cityName = getRandomCityName(game.cities[countryCode]);
+    game.country = {
+        code: countryCode,
+        name: game.countries[countryCode][1]
+    };
+    updateUI(game);
 }
 
-function updateUI(gameState, cityNameDisplay) {
-    console.log(gameState);
-    cityNameDisplay.textContent = gameState.cityName;
+function makeGuess(game, guessCountryCode, cityNameDisplay) {
+    game.previousGuesses.unshift({
+        cityName: game.cityName,
+        country: {
+            name: game.countries[game.countryCode][1],
+            code: guessCountryCode,
+        },
+        guessedCountryName: game.countries[guessCountryCode][1],
+        correct: guessCountryCode === game.countryCode,
+    });
+    if (game.previousGuesses.length > GUESSES_HISTORY_LENGTH) {
+        game.previousGuesses.shift();
+    }
+    newQuestion(game, cityNameDisplay);
 }
 
-function setUpCountryInput(countryInput, autocomplete, countryCodes, countries) {
+function setUpCountryInput(game) {
+    const { countryInput, autocomplete } = game.elements;
     countryInput.addEventListener('input', (e) => {
         const value = e.target.value
             .toLowerCase()
             .trim()
             .replaceAll(/\s{2,}/gi, ' ');
         const valueIsEmpty = value === '' || value === '.';
-        const matchingCodes = valueIsEmpty ? [] : countryCodes.filter(code => {
-            const [domain, ...names] = countries[code];
+        const matchingCodes = valueIsEmpty ? [] : game.countryCodes.filter(code => {
+            const [domain, ...names] = game.countries[code];
             return code.startsWith(value)
                 || domain.startsWith(value)
                 || domain === `.${value}`
@@ -152,7 +176,7 @@ function setUpCountryInput(countryInput, autocomplete, countryCodes, countries) 
                 autocomplete.appendChild(
                     createAutocompleteItem(
                         code,
-                        countries[code],
+                        game.countries[code],
                         index + 1,
                         countryInput,
                     )
@@ -188,16 +212,24 @@ window.addEventListener('DOMContentLoaded', async () => {
     loading.classList.add('hide');
     app.classList.remove('hide');
 
-    const gameState = {
+    const game = {
+        countryCodes,
+        countries,
+        cities,
         cityName: '',
-        countryCode: null,
+        countryCode: '',
+        countryName: '',
         previousGuesses: [
-            // { city: string, country: { name: string, code: string }, correct: boolean }
+            // { cityName: string, country: { name: string, code: string }, guessedCountryName: string, correct: boolean }
             // most recent goes first
         ],
+        elements: {
+            countryInput,
+            autocomplete,
+            cityNameDisplay,
+        },
     };
 
-    newQuestion(gameState, countryCodes, countries, cities);
-    updateUI(gameState, cityNameDisplay);
-    setUpCountryInput(countryInput, autocomplete, countryCodes, countries);
+    newQuestion(game);
+    setUpCountryInput(game);
 });

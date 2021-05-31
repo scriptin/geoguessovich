@@ -1,5 +1,22 @@
-const GUESSES_HISTORY_LENGTH = 5;
-const MAX_PREVIOUS_GUESSES_NO_REPEAT = 3;
+/**
+ * How many last guesses to show in UI
+ * @type {number}
+ */
+const VISIBLE_GUESSES_HISTORY_LENGTH = 5;
+
+/**
+ * How many last guesses to keep internally
+ * @type {number}
+ */
+const INTERNAL_GUESSES_HISTORY_LENGTH = 1000;
+
+/**
+ * How many last guessed countries to exclude from new question generation.
+ * Must be lower than total number of countries
+ * and also lower than or equal to {@link INTERNAL_GUESSES_HISTORY_LENGTH}
+ * @type {number}
+ */
+const PREVIOUS_GUESSES_NO_REPEAT = 5;
 
 async function loadCountriesData(progressBar) {
     const response = await fetch('countries.json');
@@ -119,10 +136,14 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
  * @returns {*} A random value
  */
 function getRandomProportional(probabilities) {
-    const total = probabilities.reduce((sum, [_value, p]) => sum + p , 0);
+    // by controlling the exponent we can control difficulty:
+    // - if the exponent is close to zero, "smaller" cities and countries appear more ofter
+    // - if the exponent is close to 1, "bigger" cities and countries appear more often
+    const adjustedProbabilities = probabilities.map(([v, p]) => [v, Math.ceil(Math.pow(p, 1/1.5))])
+    const total = adjustedProbabilities.reduce((sum, [_value, p]) => sum + p , 0);
     const r = Math.random() * total;
     let runningSum = 0;
-    for (let [value, p] of probabilities) {
+    for (let [value, p] of adjustedProbabilities) {
         runningSum += p;
         if (runningSum >= r) {
             return value;
@@ -162,43 +183,47 @@ function getRandomCityName(cities) {
     return getRandomProportional(probabilities);
 }
 
+function createGuessHistoryItem(guess, index) {
+    const element = document.createElement('div');
+    element.classList.add('history-item');
+    if (index === 0) {
+        setTimeout(() => {
+            element.classList.add('first');
+        }, 10);
+    }
+
+    const cityName = document.createElement('strong');
+    cityName.appendChild(document.createTextNode(guess.cityName));
+    element.appendChild(cityName);
+
+    const icon = document.createElement('span');
+    icon.classList.add('icon');
+    icon.appendChild(document.createTextNode(guess.correct ? '✅' : '❌'));
+    element.appendChild(icon);
+
+    if (!guess.correct) {
+        const incorrectGuess = document.createElement('span');
+        incorrectGuess.classList.add('incorrect-guess');
+        incorrectGuess.appendChild(document.createTextNode(guess.guessedCountryName));
+        element.appendChild(incorrectGuess);
+    }
+
+    const correctGuess = document.createElement('span');
+    correctGuess.classList.add('correct-guess');
+    correctGuess.appendChild(document.createTextNode(guess.country.name));
+    element.appendChild(correctGuess);
+
+    return element;
+}
+
 function updateUI(game) {
     console.log(game);
     const { cityNameDisplay, historyDisplay } = game.elements;
     cityNameDisplay.textContent = game.cityName;
     if (game.previousGuesses.length > 0) {
         historyDisplay.innerHTML = '';
-        game.previousGuesses.forEach((guess, index) => {
-            const element = document.createElement('div');
-            element.classList.add('history-item');
-            if (index === 0) {
-                setTimeout(() => {
-                    element.classList.add('first');
-                }, 10);
-            }
-
-            const cityName = document.createElement('strong');
-            cityName.appendChild(document.createTextNode(guess.cityName));
-            element.appendChild(cityName);
-
-            const icon = document.createElement('span');
-            icon.classList.add('icon');
-            icon.appendChild(document.createTextNode(guess.correct ? '✅' : '❌'));
-            element.appendChild(icon);
-
-            if (!guess.correct) {
-                const incorrectGuess = document.createElement('span');
-                incorrectGuess.classList.add('incorrect-guess');
-                incorrectGuess.appendChild(document.createTextNode(guess.guessedCountryName));
-                element.appendChild(incorrectGuess);
-            }
-
-            const correctGuess = document.createElement('span');
-            correctGuess.classList.add('correct-guess');
-            correctGuess.appendChild(document.createTextNode(guess.country.name));
-            element.appendChild(correctGuess);
-
-            historyDisplay.append(element);
+        game.previousGuesses.slice(0, VISIBLE_GUESSES_HISTORY_LENGTH).forEach((guess, index) => {
+            historyDisplay.append(createGuessHistoryItem(guess, index));
         });
     }
 }
@@ -207,7 +232,7 @@ function newQuestion(game) {
     const countryCode = getRandomCountryCode(
         game.countryCodes,
         game.cities,
-        game.previousGuesses.slice(0, MAX_PREVIOUS_GUESSES_NO_REPEAT).map(g => g.country.code),
+        game.previousGuesses.slice(0, PREVIOUS_GUESSES_NO_REPEAT).map(g => g.country.code),
     );
     game.cityName = getRandomCityName(game.cities[countryCode]);
     game.country = {
@@ -227,7 +252,7 @@ function makeGuess(game, guessCountryCode) {
         guessedCountryName: game.countries[guessCountryCode][1],
         correct: guessCountryCode === game.country.code,
     });
-    if (game.previousGuesses.length > GUESSES_HISTORY_LENGTH) {
+    if (game.previousGuesses.length > INTERNAL_GUESSES_HISTORY_LENGTH) {
         game.previousGuesses.pop();
     }
     newQuestion(game);

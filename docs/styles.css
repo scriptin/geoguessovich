@@ -69,6 +69,24 @@ body {
     margin: var(--app-margin);
 }
 
+.difficulty-input-container {
+    width: var(--base-width);
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-content: flex-start;
+    align-items: center;
+    column-gap: 0.5rem;
+
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+}
+
+.difficulty-input {
+    width: var(--base-width);
+    flex-grow: 1;
+}
+
 .question {
     color: var(--text-color-secondary);
     font-size: 0.8rem;

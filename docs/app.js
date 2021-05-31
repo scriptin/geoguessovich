@@ -18,6 +18,27 @@ const INTERNAL_GUESSES_HISTORY_LENGTH = 1000;
  */
 const PREVIOUS_GUESSES_NO_REPEAT = 5;
 
+/**
+ * Must match those in index.html <datalist>
+ * Must start with 0 and contain subsequent natural numbers, without skipping
+ * @type {number[]}
+ */
+const DIFFICULTY_LEVELS = [0, 1, 2, 3, 4];
+
+/**
+ * Exponent denominator is used to scale down the weight
+ * of a country/city by calculating `Math.pow(weight, 1/d)`,
+ * where `d` is the denominator value.
+ *
+ * Simply, by controlling the exponent denominator we can control game difficulty:
+ *
+ * - if the exponent is closer to 1 (d = 1), bigger cities and countries appear more often
+ * - if the exponent is closer to zero (d is bigger than 1),
+ *   the distribution of small and big countries/cities is more even
+ * @type {number[]}
+ */
+const difficultyExponentDenominators = DIFFICULTY_LEVELS.map(v => Math.exp(v / (DIFFICULTY_LEVELS.length - 1)));
+
 async function loadCountriesData(progressBar) {
     const response = await fetch('countries.json');
     const countries = await response.json();
@@ -132,18 +153,23 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
  * Get a random value, with a probability of getting it
  * proportional to its weight.
  *
- * @param probabilities Array of [value, weight]
+ * @param weights Array of [value, weight]
+ * @param difficultyLevel Number from 1 to 5
  * @returns {*} A random value
  */
-function getRandomProportional(probabilities) {
-    // by controlling the exponent we can control difficulty:
-    // - if the exponent is close to zero, "smaller" cities and countries appear more ofter
-    // - if the exponent is close to 1, "bigger" cities and countries appear more often
-    const adjustedProbabilities = probabilities.map(([v, p]) => [v, Math.ceil(Math.pow(p, 1/1.5))])
-    const total = adjustedProbabilities.reduce((sum, [_value, p]) => sum + p , 0);
+function getRandomProportional(weights, difficultyLevel) {
+    const exponentDenominator = difficultyExponentDenominators[difficultyLevel];
+    if (exponentDenominator == null) {
+        throw new Error('Invalid game difficulty level: ' + difficultyLevel);
+    }
+    const adjustedWeights = weights.map(([v, p]) => (
+        [v, Math.ceil(Math.pow(p, 1 / exponentDenominator))]
+    ))
+
+    const total = adjustedWeights.reduce((sum, [_value, p]) => sum + p , 0);
     const r = Math.random() * total;
     let runningSum = 0;
-    for (let [value, p] of adjustedProbabilities) {
+    for (let [value, p] of adjustedWeights) {
         runningSum += p;
         if (runningSum >= r) {
             return value;
@@ -159,16 +185,17 @@ function getRandomProportional(probabilities) {
  * @param countryCodes Array of country codes
  * @param cities Object: code -> array of cities
  * @param recentCodes Array of recently used codes
+ * @param difficultyLevel Number from 1 to 5
  * @returns {*} A random code
  */
-function getRandomCountryCode(countryCodes, cities, recentCodes) {
+function getRandomCountryCode(countryCodes, cities, recentCodes, difficultyLevel) {
     const probabilities = countryCodes.map(code => {
         if (recentCodes.includes(code)) {
             return [code, 0];
         }
         return [code, cities[code].length];
     }).filter(([_country, nCities]) => nCities > 0);
-    return getRandomProportional(probabilities);
+    return getRandomProportional(probabilities, difficultyLevel);
 }
 
 /**
@@ -176,11 +203,12 @@ function getRandomCountryCode(countryCodes, cities, recentCodes) {
  * proportional to its population.
  *
  * @param cities Array of [cityName, population]
+ * @param difficultyLevel Number from 1 to 5
  * @returns {*} A random city name
  */
-function getRandomCityName(cities) {
+function getRandomCityName(cities, difficultyLevel) {
     const probabilities = cities.filter(([_city, population]) => population > 0);
-    return getRandomProportional(probabilities);
+    return getRandomProportional(probabilities, difficultyLevel);
 }
 
 function createGuessHistoryItem(guess, index) {
@@ -233,8 +261,12 @@ function newQuestion(game) {
         game.countryCodes,
         game.cities,
         game.previousGuesses.slice(0, PREVIOUS_GUESSES_NO_REPEAT).map(g => g.country.code),
+        game.difficultyLevel,
     );
-    game.cityName = getRandomCityName(game.cities[countryCode]);
+    game.cityName = getRandomCityName(
+        game.cities[countryCode],
+        game.difficultyLevel,
+    );
     game.country = {
         code: countryCode,
         name: game.countries[countryCode][1]
@@ -330,10 +362,19 @@ function setUpCountryInput(game) {
     })
 }
 
+function setUpDifficultyInput(game) {
+    const { difficultyInput } = game.elements;
+    difficultyInput.value = game.difficultyLevel;
+    difficultyInput.addEventListener('change', e => {
+        game.difficultyLevel = parseInt(e.target.value, 10) ?? 1;
+    })
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
     const loading = document.getElementById('loading');
     const progressBar = loading.getElementsByClassName('progress-bar')[0];
     const app = document.getElementById('app');
+    const difficultyInput = document.getElementById('difficulty-input');
     const countryInput = document.getElementById('country-input');
     const autocomplete = document.getElementById('autocomplete');
     const cityNameDisplay = document.getElementById('city-name');
@@ -357,6 +398,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         countryCodes,
         countries,
         cities,
+        difficultyLevel: 0,
         cityName: '',
         countryCode: '',
         countryName: '',
@@ -365,6 +407,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             // most recent goes first
         ],
         elements: {
+            difficultyInput,
             countryInput,
             autocomplete,
             cityNameDisplay,
@@ -373,5 +416,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     };
 
     newQuestion(game);
+    setUpDifficultyInput(game);
     setUpCountryInput(game);
 });

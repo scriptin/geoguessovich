@@ -18,9 +18,32 @@
         <div class="progress-bar"></div>
     </div>
     <div id="app" class="app">
+        <label for="difficulty-input" class="input-label">
+            Difficulty level
+        </label>
+        <div class="difficulty-input-container">
+            <span>🤤</span>
+            <input
+                id="difficulty-input"
+                class="difficulty-input"
+                type="range"
+                list="difficulty-levels"
+                min="0"
+                max="4"
+                step="1"
+            >
+            <span>🤓</span>
+        </div>
+        <datalist id="difficulty-levels">
+            <option value="0"></option>
+            <option value="1"></option>
+            <option value="2"></option>
+            <option value="3"></option>
+            <option value="4"></option>
+        </datalist>
         <small class="question">Which country is this city/town located in?</small>
         <h1 id="city-name" class="city-name">?</h1>
-        <p class="input-container">
+        <div class="input-container">
             <label for="country-input" class="input-label">
                 Country name, domain, or ISO 2-letter code
             </label>
@@ -31,7 +54,7 @@
                 placeholder="USA, US, United States, .us"
                 tabindex="0"
             >
-        </p>
+        </div>
         <div class="autocomplete-container">
             <div id="autocomplete" class="autocomplete" style="display: none"></div>
         </div>

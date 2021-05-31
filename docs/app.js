@@ -67,16 +67,23 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
         element.appendChild(namesEl);
 
         element.setAttribute('tabindex', '0');
+        element.setAttribute('title', `Press '${ordinalNumber}' key to pick this option`);
+
+        const submitGuess = () => {
+            makeGuess(game, countryCode);
+            autocomplete.innerHTML = '';
+            autocomplete.style.display = 'none';
+            countryInput.value = '';
+            countryInput.focus();
+        };
+
         element.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 element.blur();
                 countryInput.focus();
+                setCaretToEnd(countryInput);
             } else if (e.key === 'Enter') {
-                makeGuess(game, countryCode);
-                autocomplete.innerHTML = '';
-                autocomplete.style.display = 'none';
-                countryInput.value = '';
-                countryInput.focus();
+                submitGuess();
             } else if (e.key === 'Down' || e.key === 'ArrowDown') {
                 if (element.nextElementSibling) {
                     element.nextElementSibling.focus();
@@ -94,6 +101,10 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
                     setCaretToEnd(countryInput);
                 }
             }
+        });
+
+        element.addEventListener('click', () => {
+            submitGuess();
         });
     }
 

@@ -124,6 +124,8 @@ body {
 
     background: var(--bg-color-input);
     padding: 0.5rem;
+
+    cursor: pointer;
 }
 
 .autocomplete-item:not(:last-child) {
@@ -135,7 +137,7 @@ body {
     border-bottom-right-radius: var(--input-border-radius);
 }
 
-.autocomplete-item:focus {
+.autocomplete-item:focus, .autocomplete-item:hover {
     background: var(--border-color-normal);
     outline: none;
 }

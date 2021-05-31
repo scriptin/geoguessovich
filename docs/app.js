@@ -33,6 +33,15 @@ async function loadCitiesData(countryCodes, progressBar) {
     return cities;
 }
 
+function setCaretToEnd(input) {
+    // Using timeout because when pressing up arrow key
+    // the caret shifts to the beginning be default
+    setTimeout(() => {
+        const lastChar = input.value.length;
+        input.setSelectionRange(lastChar, lastChar);
+    }, 1);
+}
+
 function createAutocompleteItem(game, countryCode, ordinalNumber) {
     const { countryInput, autocomplete } = game.elements;
     const element = document.createElement('div');
@@ -68,6 +77,22 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
                 autocomplete.style.display = 'none';
                 countryInput.value = '';
                 countryInput.focus();
+            } else if (e.key === 'Down' || e.key === 'ArrowDown') {
+                if (element.nextElementSibling) {
+                    element.nextElementSibling.focus();
+                } else {
+                    // At the bottom of the list - move focus back to input
+                    countryInput.focus();
+                    setCaretToEnd(countryInput);
+                }
+            } else if (e.key === 'Up' || e.key === 'ArrowUp') {
+                if (element.previousElementSibling) {
+                    element.previousElementSibling.focus();
+                } else {
+                    // At the top of the list - move focus back to input
+                    countryInput.focus();
+                    setCaretToEnd(countryInput);
+                }
             }
         });
     }
@@ -241,8 +266,8 @@ function setUpCountryInput(game) {
     });
 
     countryInput.addEventListener('keydown', (e) => {
-        if (!/^\d$/.test(e.key) && e.key !== 'Enter') {
-            // Early exit if not a number
+        if (!/^\d$/.test(e.key) && !['Enter', 'Down', 'ArrowDown', 'Up', 'ArrowUp'].includes(e.key)) {
+            // Early exit if not a number, Enter, or an arrow key
             return;
         }
         const value = cleanInputValue(e.target.value);
@@ -261,6 +286,10 @@ function setUpCountryInput(game) {
             e.target.value = '';
             updateAutocomplete('');
             e.preventDefault();
+        } else if (e.key === 'Down' || e.key === 'ArrowDown') {
+            autocomplete.querySelector('[tabindex="0"]:first-child')?.focus();
+        } else if (e.key === 'Up' || e.key === 'ArrowUp') {
+            autocomplete.querySelector('[tabindex="0"]:last-child')?.focus();
         }
     })
 }
@@ -269,7 +298,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const loading = document.getElementById('loading');
     const progressBar = loading.getElementsByClassName('progress-bar')[0];
     const app = document.getElementById('app');
-    const countryInput = document.getElementById('county-input');
+    const countryInput = document.getElementById('country-input');
     const autocomplete = document.getElementById('autocomplete');
     const cityNameDisplay = document.getElementById('city-name');
     const historyDisplay = document.getElementById('history');

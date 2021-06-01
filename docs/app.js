@@ -11,16 +11,28 @@ const VISIBLE_GUESSES_HISTORY_LENGTH = 5;
 const INTERNAL_GUESSES_HISTORY_LENGTH = 1000;
 
 /**
- * How many last guessed countries to exclude from new question generation.
- * Must be lower than total number of countries
- * and also lower than or equal to {@link INTERNAL_GUESSES_HISTORY_LENGTH}
+ * How many last previously chosen countries to account for
+ * when generating the next question. This is to make question
+ * generation "more random" (from user perspective),
+ * making sure that same item doesn't get chosen several times in a row.
+ *
+ * - Must be lower than total number of countries
+ * - Must be lower than or equal to {@link INTERNAL_GUESSES_HISTORY_LENGTH}
  * @type {number}
  */
-const PREVIOUS_GUESSES_NO_REPEAT = 5;
+const PREVIOUS_QUESTIONS_RECENT_LIST_LENGTH = 5;
 
 /**
- * Must match those in index.html <datalist>
- * Must start with 0 and contain subsequent natural numbers, without skipping
+ * Maximum denominator penalty for recent appearance.
+ * It means that if a country was just chosen in the previous round,
+ * it is X times LESS likely to be chosen in the current round.
+ * @type {number}
+ */
+const MAX_RECENCY_PENALTY_DENOMINATOR = 10;
+
+/**
+ * - Must match those in index.html <datalist>
+ * - Must start with 0 and contain subsequent natural numbers, without skipping
  * @type {number[]}
  */
 const DIFFICULTY_LEVELS = [0, 1, 2, 3, 4];
@@ -184,18 +196,21 @@ function getRandomProportional(weights, difficultyLevel) {
  *
  * @param countryCodes Array of country codes
  * @param cities Object: code -> array of cities
- * @param recentCodes Array of recently used codes
+ * @param recentCodes Array of recently used codes, most recent first
  * @param difficultyLevel Number from 1 to 5
  * @returns {*} A random code
  */
 function getRandomCountryCode(countryCodes, cities, recentCodes, difficultyLevel) {
-    const probabilities = countryCodes.map(code => {
+    const weights = countryCodes.map(code => {
         if (recentCodes.includes(code)) {
-            return [code, 0];
+            const recencyIndex = recentCodes.indexOf(code);
+            // penalize for recent appearance by dividing the weight
+            const penaltyDenominator = MAX_RECENCY_PENALTY_DENOMINATOR * (1 - (recencyIndex / recentCodes.length));
+            return [code, Math.ceil(cities[code].length / penaltyDenominator)];
         }
         return [code, cities[code].length];
     }).filter(([_country, nCities]) => nCities > 0);
-    return getRandomProportional(probabilities, difficultyLevel);
+    return getRandomProportional(weights, difficultyLevel);
 }
 
 /**
@@ -207,8 +222,8 @@ function getRandomCountryCode(countryCodes, cities, recentCodes, difficultyLevel
  * @returns {*} A random city name
  */
 function getRandomCityName(cities, difficultyLevel) {
-    const probabilities = cities.filter(([_city, population]) => population > 0);
-    return getRandomProportional(probabilities, difficultyLevel);
+    const weights = cities.filter(([_city, population]) => population > 0);
+    return getRandomProportional(weights, difficultyLevel);
 }
 
 function createGuessHistoryItem(guess, index) {
@@ -260,7 +275,7 @@ function newQuestion(game) {
     const countryCode = getRandomCountryCode(
         game.countryCodes,
         game.cities,
-        game.previousGuesses.slice(0, PREVIOUS_GUESSES_NO_REPEAT).map(g => g.country.code),
+        game.previousGuesses.slice(0, PREVIOUS_QUESTIONS_RECENT_LIST_LENGTH).map(g => g.country.code),
         game.difficultyLevel,
     );
     game.cityName = getRandomCityName(

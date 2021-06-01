@@ -174,15 +174,15 @@ function getRandomProportional(weights, difficultyLevel) {
     if (exponentDenominator == null) {
         throw new Error('Invalid game difficulty level: ' + difficultyLevel);
     }
-    const adjustedWeights = weights.map(([v, p]) => (
-        [v, Math.ceil(Math.pow(p, 1 / exponentDenominator))]
+    const adjustedWeights = weights.map(([value, weight]) => (
+        [value, Math.ceil(Math.pow(weight, 1 / exponentDenominator))]
     ))
 
-    const total = adjustedWeights.reduce((sum, [_value, p]) => sum + p , 0);
+    const total = adjustedWeights.reduce((sum, [_value, weight]) => sum + weight , 0);
     const r = Math.random() * total;
     let runningSum = 0;
-    for (let [value, p] of adjustedWeights) {
-        runningSum += p;
+    for (let [value, weight] of adjustedWeights) {
+        runningSum += weight;
         if (runningSum >= r) {
             return value;
         }
@@ -217,12 +217,13 @@ function getRandomCountryCode(countryCodes, cities, recentCodes, difficultyLevel
  * Get a random city, with a probability of getting it
  * proportional to its population.
  *
- * @param cities Array of [cityName, population]
+ * @param cities Array of [name, population]
  * @param difficultyLevel Number from 1 to 5
  * @returns {*} A random city name
  */
-function getRandomCityName(cities, difficultyLevel) {
-    const weights = cities.filter(([_city, population]) => population > 0);
+function getRandomCity(cities, difficultyLevel) {
+    // Copy population as a weight
+    const weights = cities.map(([name, population]) => [[name, population], population]);
     return getRandomProportional(weights, difficultyLevel);
 }
 
@@ -236,7 +237,7 @@ function createGuessHistoryItem(guess, index) {
     }
 
     const cityName = document.createElement('strong');
-    cityName.appendChild(document.createTextNode(guess.cityName));
+    cityName.appendChild(document.createTextNode(guess.city.name));
     element.appendChild(cityName);
 
     const icon = document.createElement('span');
@@ -262,7 +263,7 @@ function createGuessHistoryItem(guess, index) {
 function updateUI(game) {
     console.log(game);
     const { cityNameDisplay, historyDisplay } = game.elements;
-    cityNameDisplay.textContent = game.cityName;
+    cityNameDisplay.textContent = game.city.name;
     if (game.previousGuesses.length > 0) {
         historyDisplay.innerHTML = '';
         game.previousGuesses.slice(0, VISIBLE_GUESSES_HISTORY_LENGTH).forEach((guess, index) => {
@@ -278,10 +279,14 @@ function newQuestion(game) {
         game.previousGuesses.slice(0, PREVIOUS_QUESTIONS_RECENT_LIST_LENGTH).map(g => g.country.code),
         game.difficultyLevel,
     );
-    game.cityName = getRandomCityName(
+    const [name, population] = getRandomCity(
         game.cities[countryCode],
         game.difficultyLevel,
     );
+    game.city = {
+        name,
+        population,
+    };
     game.country = {
         code: countryCode,
         name: game.countries[countryCode][1]
@@ -290,17 +295,18 @@ function newQuestion(game) {
 }
 
 function makeGuess(game, guessCountryCode) {
-    game.previousGuesses.unshift({
-        cityName: game.cityName,
+    const { previousGuesses, country, countries } = game;
+    previousGuesses.unshift({
+        city: game.city,
         country: {
-            code: game.country.code,
-            name: game.countries[game.country.code][1],
+            code: country.code,
+            name: countries[country.code][1],
         },
-        guessedCountryName: game.countries[guessCountryCode][1],
-        correct: guessCountryCode === game.country.code,
+        guessedCountryName: countries[guessCountryCode][1],
+        correct: guessCountryCode === country.code,
     });
-    if (game.previousGuesses.length > INTERNAL_GUESSES_HISTORY_LENGTH) {
-        game.previousGuesses.pop();
+    if (previousGuesses.length > INTERNAL_GUESSES_HISTORY_LENGTH) {
+        previousGuesses.splice(INTERNAL_GUESSES_HISTORY_LENGTH);
     }
     newQuestion(game);
 }
@@ -399,12 +405,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     loading.classList.remove('hide');
     app.classList.add('hide');
 
+    /**
+     * @type {{
+     *     [string]: string[]
+     * }}
+     */
     const countries = await loadCountriesData(progressBar);
     const countryCodes = Object.keys(countries)
         .filter(code => !['_comment', 'vi', 'cx'].includes(code))
         .sort();
 
     const cities = await loadCitiesData(countryCodes, progressBar);
+    for (let countryCode in cities) {
+        cities[countryCode] = cities[countryCode].filter(([_name, population]) => population > 0);
+    }
 
     loading.classList.add('hide');
     app.classList.remove('hide');
@@ -414,13 +428,22 @@ window.addEventListener('DOMContentLoaded', async () => {
         countries,
         cities,
         difficultyLevel: 0,
-        cityName: '',
+        city: {
+            name: '',
+            population: 0,
+        },
         countryCode: '',
         countryName: '',
-        previousGuesses: [
-            // { cityName: string, country: { code: string, name: string }, guessedCountryName: string, correct: boolean }
-            // most recent goes first
-        ],
+        /**
+         * Most recent goes first
+         * @type {{
+         *     city: { name: string, population: string },
+         *     country: { code: string, name: string },
+         *     guessedCountryName: string,
+         *     correct: boolean,
+         * }[]}
+         */
+        previousGuesses: [],
         elements: {
             difficultyInput,
             countryInput,

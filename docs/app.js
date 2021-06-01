@@ -227,6 +227,15 @@ function getRandomCity(cities, difficultyLevel) {
     return getRandomProportional(weights, difficultyLevel);
 }
 
+function formatPopulation(population) {
+    if (population > 1e6) {
+        return (population / 1e6).toFixed(1).replace('.0', '') + 'M';
+    } else if (population > 1e3) {
+        return (population / 1e3).toFixed(1).replace('.0', '') + 'K';
+    }
+    return population;
+}
+
 function createGuessHistoryItem(guess, index) {
     const element = document.createElement('div');
     element.classList.add('history-item');
@@ -239,6 +248,11 @@ function createGuessHistoryItem(guess, index) {
     const cityName = document.createElement('strong');
     cityName.appendChild(document.createTextNode(guess.city.name));
     element.appendChild(cityName);
+
+    const cityPopulation = document.createElement('span');
+    cityPopulation.appendChild(document.createTextNode(formatPopulation(guess.city.population)));
+    cityPopulation.setAttribute('title', `population = ${guess.city.population}`)
+    element.appendChild(cityPopulation);
 
     const icon = document.createElement('span');
     icon.classList.add('icon');

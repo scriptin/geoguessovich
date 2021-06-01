@@ -69,6 +69,46 @@ body {
     margin: var(--app-margin);
 }
 
+.app-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-content: flex-start;
+    align-items: center;
+    column-gap: 0;
+    margin-bottom: 2rem;
+}
+
+.app-header *:nth-child(2) {
+    position: relative;
+    left: -6px;
+}
+
+.app-header *:nth-child(3) {
+    position: relative;
+    left: -11px;
+}
+
+.app-title-text {
+    z-index: 10;
+    text-transform: uppercase;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    /* shadows galore! */
+    text-shadow:
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red,
+        0 0 4px red;
+}
+
 .difficulty-input-container {
     width: var(--base-width);
     display: flex;

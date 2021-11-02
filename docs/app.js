@@ -51,29 +51,79 @@ const DIFFICULTY_LEVELS = [0, 1, 2, 3, 4];
  */
 const difficultyExponentDenominators = DIFFICULTY_LEVELS.map(v => Math.exp(v / (DIFFICULTY_LEVELS.length - 1)));
 
+/**
+ * @typedef {[population: number, countryCode: string]} CityPopulationDataItem
+ *
+ * @typedef {{
+ *     [cityName: string]: CityPopulationDataItem[],
+ * }} Cities
+ *
+ * @typedef {{
+ *     [countryCode: string]: string[],
+ * }} Countries
+ *
+ * @typedef {{
+ *     cityName: string,
+ *     cityPopulations: CityPopulationDataItem[],
+ *     guessedCountryCode: string,
+ *     guessedCountryName: string,
+ *     actualCountryNames: string[],
+ *     correct: boolean,
+ * }} Guess
+ *
+ * @typedef {{
+ *     countryCodes: string[],
+ *     countries: Countries,
+ *     cities: Cities,
+ *     cityName: string,
+ *     cityPopulations: CityPopulationDataItem[],
+ *     difficultyLevel: number,
+ *     countryCode: string,
+ *     countryName: string,
+ *     elements: {
+ *         countryInput: HTMLElement,
+ *         autocomplete: HTMLElement,
+ *         difficultyInput: HTMLElement,
+ *         cityNameDisplay: HTMLElement,
+ *         historyDisplay: HTMLElement
+ *     },
+ *     guesses: Guess[],
+ * }} Game
+ */
+
+/**
+ * @param progressBar {HTMLElement}
+ * @returns {Promise<Countries>}
+ */
 async function loadCountriesData(progressBar) {
     const response = await fetch('countries.json');
     const countries = await response.json();
-    progressBar.style.width = '1%'; // because countries data has been loaded
+    progressBar.style.width = '10%'; // because there are 9 buckets
+    progressBar.dataset.progress = '10';
 
     return countries;
 }
 
-async function loadCitiesData(countryCodes, progressBar) {
+/**
+ * @param progressBar {HTMLElement}
+ * @returns {Promise<Cities>}
+ */
+async function loadCitiesData(progressBar) {
     const cities = {};
 
     // Loading in parallel
     const requests = [];
-    for (const code of countryCodes) {
+    for (let bucket = 1; bucket <= 9; bucket++) {
         requests.push(
-            fetch(`cities/${code}.json`)
+            fetch(`cities/${bucket}.json`)
                 .then(data => data.json())
                 .then(json => {
-                    cities[code] = json;
-                    const total = countryCodes.length + 1; // +1 for countries data
-                    const loaded = Object.keys(cities).length + 1;
-                    const percent = Math.trunc((loaded / total) * 100);
-                    progressBar.style.width = `${percent}%`;
+                    for (let cityName of Object.keys(json)) {
+                        cities[cityName] = json[cityName];
+                    }
+                    const progress = Number.parseInt(progressBar.dataset.progress, 10);
+                    progressBar.style.width = `${progress + 10}%`;
+                    progressBar.dataset.progress = (progress + 10).toString();
                 })
                 .catch(e => console.error(e))
         );
@@ -92,6 +142,12 @@ function setCaretToEnd(input) {
     }, 1);
 }
 
+/**
+ * @param game {Game}
+ * @param countryCode {string|false}
+ * @param ordinalNumber {number?}
+ * @return {HTMLDivElement}
+ */
 function createAutocompleteItem(game, countryCode, ordinalNumber) {
     const { countryInput, autocomplete } = game.elements;
     const element = document.createElement('div');
@@ -100,11 +156,11 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
     if (!countryCode) {
         element.classList.add('nothing-found');
         element.appendChild(document.createTextNode('Nothing found'));
-    } else {
+    } else if (ordinalNumber != null) {
         const [domain, name, ...otherNames] = game.countries[countryCode];
 
         const kbdEl = document.createElement('kbd');
-        kbdEl.appendChild(document.createTextNode(ordinalNumber))
+        kbdEl.appendChild(document.createTextNode(ordinalNumber.toString()))
         element.appendChild(kbdEl);
 
         const domainEl = document.createElement('code');
@@ -165,9 +221,9 @@ function createAutocompleteItem(game, countryCode, ordinalNumber) {
  * Get a random value, with a probability of getting it
  * proportional to its weight.
  *
- * @param weights Array of [value, weight]
- * @param difficultyLevel Number from 1 to 5
- * @returns {*} A random value
+ * @param weights {[value: any, weight: number][]}
+ * @param difficultyLevel {number} Number from 1 to 5
+ * @returns {any} A random value
  */
 function getRandomProportional(weights, difficultyLevel) {
     const exponentDenominator = difficultyExponentDenominators[difficultyLevel];
@@ -178,7 +234,7 @@ function getRandomProportional(weights, difficultyLevel) {
         [value, Math.ceil(Math.pow(weight, 1 / exponentDenominator))]
     ))
 
-    const total = adjustedWeights.reduce((sum, [_value, weight]) => sum + weight , 0);
+    const total = adjustedWeights.reduce((sum, [_, weight]) => sum + weight , 0);
     const r = Math.random() * total;
     let runningSum = 0;
     for (let [value, weight] of adjustedWeights) {
@@ -189,53 +245,85 @@ function getRandomProportional(weights, difficultyLevel) {
     }
 }
 
-/**
- * Get a random country code, with a probability of getting it
- * proportional to number of cities in it,
- * excluding the codes which were used recently.
- *
- * @param countryCodes Array of country codes
- * @param cities Object: code -> array of cities
- * @param recentCodes Array of recently used codes, most recent first
- * @param difficultyLevel Number from 1 to 5
- * @returns {*} A random code
- */
-function getRandomCountryCode(countryCodes, cities, recentCodes, difficultyLevel) {
-    const weights = countryCodes.map(code => {
-        if (recentCodes.includes(code)) {
-            const recencyIndex = recentCodes.indexOf(code);
-            // penalize for recent appearance by dividing the weight
-            const penaltyDenominator = MAX_RECENCY_PENALTY_DENOMINATOR * (1 - (recencyIndex / recentCodes.length));
-            return [code, Math.ceil(cities[code].length / penaltyDenominator)];
-        }
-        return [code, cities[code].length];
-    }).filter(([_country, nCities]) => nCities > 0);
-    return getRandomProportional(weights, difficultyLevel);
-}
+const cache = {};
 
 /**
  * Get a random city, with a probability of getting it
  * proportional to its population.
  *
- * @param cities Array of [name, population]
- * @param difficultyLevel Number from 1 to 5
- * @returns {*} A random city name
+ * @param cities {Cities}
+ * @param difficultyLevel {number} Number from 1 to 5
+ * @returns {string} A random city name
  */
-function getRandomCity(cities, difficultyLevel) {
-    // Copy population as a weight
-    const weights = cities.map(([name, population]) => [[name, population], population]);
-    return getRandomProportional(weights, difficultyLevel);
+function getRandomCityName(cities, difficultyLevel) {
+    if (!cache.weights) {
+        const max = (a, b) => Math.max(a, b);
+        // Use max. population as a weight
+        cache.weights = Object.keys(cities).map((cityName) => [
+            cityName,
+            cities[cityName].map(([pop]) => pop).reduce(max, 0),
+        ]);
+    }
+    return getRandomProportional(cache.weights, difficultyLevel);
 }
 
+/**
+ * @param population {number}
+ * @returns {string}
+ */
 function formatPopulation(population) {
     if (population > 1e6) {
         return (population / 1e6).toFixed(1).replace('.0', '') + 'M';
     } else if (population > 1e3) {
         return (population / 1e3).toFixed(1).replace('.0', '') + 'K';
     }
-    return population;
+    return population.toString();
 }
 
+function unique(sortedValues) {
+    const result = [];
+    for (let value of sortedValues) {
+        if (result.length === 0 || result[result.length - 1] !== value) {
+            result.push(value);
+        }
+    }
+    return result;
+}
+
+/**
+ * @param names {string[]}
+ * @return {string}
+ */
+function formatCountryNames(names) {
+    const sorted = unique(names.sort());
+    if (sorted.length === 1) {
+        return sorted[0];
+    }
+    if (sorted.length === 2) {
+        return `${sorted[0]} or ${sorted[1]}`;
+    }
+    if (sorted.length > 2) {
+        let result = '';
+        let i = 0;
+        while (i < sorted.length) {
+            let separator = ', ';
+            if (i === sorted.length - 2) {
+                separator = ', or ';
+            } else if (i === sorted.length - 1) {
+                separator = '';
+            }
+            result += sorted[i] + separator;
+            i++;
+        }
+        return result;
+    }
+}
+
+/**
+ * @param guess {Guess}
+ * @param index {number}
+ * @returns {HTMLDivElement}
+ */
 function createGuessHistoryItem(guess, index) {
     const element = document.createElement('div');
     element.classList.add('history-item');
@@ -246,12 +334,18 @@ function createGuessHistoryItem(guess, index) {
     }
 
     const cityName = document.createElement('strong');
-    cityName.appendChild(document.createTextNode(guess.city.name));
+    cityName.appendChild(document.createTextNode(guess.cityName));
     element.appendChild(cityName);
 
+    const guessedCountryPopulationData = guess.cityPopulations.find(([_, cCode]) => cCode === guess.guessedCountryCode);
+    const topPopulation = guess.cityPopulations.sort((a, b) => a[0] - b[0])[0];
+    const population = guess.correct
+        ? guessedCountryPopulationData[0]
+        : topPopulation[0];
     const cityPopulation = document.createElement('span');
-    cityPopulation.appendChild(document.createTextNode(formatPopulation(guess.city.population)));
-    cityPopulation.setAttribute('title', `population = ${guess.city.population}`)
+    const populationSuffix = guess.cityPopulations.length > 1 ? ` (in ${topPopulation[1]})` : '';
+    cityPopulation.appendChild(document.createTextNode(formatPopulation(population) + populationSuffix));
+    cityPopulation.setAttribute('title', `population = ${population}${populationSuffix}`)
     element.appendChild(cityPopulation);
 
     const icon = document.createElement('span');
@@ -268,63 +362,64 @@ function createGuessHistoryItem(guess, index) {
 
     const correctGuess = document.createElement('span');
     correctGuess.classList.add('correct-guess');
-    correctGuess.appendChild(document.createTextNode(guess.country.name));
+    correctGuess.appendChild(document.createTextNode(formatCountryNames(guess.actualCountryNames)));
     element.appendChild(correctGuess);
 
     return element;
 }
 
+/**
+ * @param game {Game}
+ */
 function updateUI(game) {
     console.log(game);
     const { cityNameDisplay, historyDisplay } = game.elements;
-    cityNameDisplay.textContent = game.city.name;
-    if (game.previousGuesses.length > 0) {
+    cityNameDisplay.textContent = game.cityName;
+    if (game.guesses.length > 0) {
         historyDisplay.innerHTML = '';
-        game.previousGuesses.slice(0, VISIBLE_GUESSES_HISTORY_LENGTH).forEach((guess, index) => {
+        game.guesses.slice(0, VISIBLE_GUESSES_HISTORY_LENGTH).forEach((guess, index) => {
             historyDisplay.append(createGuessHistoryItem(guess, index));
         });
     }
 }
 
+/**
+ * @param game {Game}
+ */
 function newQuestion(game) {
-    const countryCode = getRandomCountryCode(
-        game.countryCodes,
+    const cityName = getRandomCityName(
         game.cities,
-        game.previousGuesses.slice(0, PREVIOUS_QUESTIONS_RECENT_LIST_LENGTH).map(g => g.country.code),
         game.difficultyLevel,
     );
-    const [name, population] = getRandomCity(
-        game.cities[countryCode],
-        game.difficultyLevel,
-    );
-    game.city = {
-        name,
-        population,
-    };
-    game.country = {
-        code: countryCode,
-        name: game.countries[countryCode][1]
-    };
+    game.cityName = cityName;
+    game.cityPopulations = game.cities[cityName];
     updateUI(game);
 }
 
-function makeGuess(game, guessCountryCode) {
-    const { previousGuesses, country, countries } = game;
-    previousGuesses.unshift({
-        city: game.city,
-        country: {
-            code: country.code,
-            name: countries[country.code][1],
-        },
-        guessedCountryName: countries[guessCountryCode][1],
-        correct: guessCountryCode === country.code,
+/**
+ * @param game {Game}
+ * @param guessedCountryCode {string}
+ */
+function makeGuess(game, guessedCountryCode) {
+    const { guesses, countries, cityName, cityPopulations } = game;
+    const actualCountryCodes = cityPopulations.map(([_, cCode]) => cCode);
+    guesses.unshift({
+        cityName,
+        cityPopulations,
+        guessedCountryCode,
+        guessedCountryName: countries[guessedCountryCode][1],
+        actualCountryNames: actualCountryCodes.map((code) => countries[code][1]),
+        correct: actualCountryCodes.includes(guessedCountryCode),
     });
-    if (previousGuesses.length > INTERNAL_GUESSES_HISTORY_LENGTH) {
-        previousGuesses.splice(INTERNAL_GUESSES_HISTORY_LENGTH);
+    if (guesses.length > INTERNAL_GUESSES_HISTORY_LENGTH) {
+        guesses.splice(INTERNAL_GUESSES_HISTORY_LENGTH);
     }
     newQuestion(game);
 }
 
+/**
+ * @param game {Game}
+ */
 function setUpCountryInput(game) {
     const { countryInput, autocomplete } = game.elements;
 
@@ -397,6 +492,9 @@ function setUpCountryInput(game) {
     })
 }
 
+/**
+ * @param game {Game}
+ */
 function setUpDifficultyInput(game) {
     const { difficultyInput } = game.elements;
     difficultyInput.value = game.difficultyLevel;
@@ -419,45 +517,29 @@ window.addEventListener('DOMContentLoaded', async () => {
     loading.classList.remove('hide');
     app.classList.add('hide');
 
-    /**
-     * @type {{
-     *     [string]: string[]
-     * }}
-     */
     const countries = await loadCountriesData(progressBar);
     const countryCodes = Object.keys(countries)
         .filter(code => !['_comment', 'vi', 'cx'].includes(code))
         .sort();
 
-    const cities = await loadCitiesData(countryCodes, progressBar);
-    for (let countryCode in cities) {
-        cities[countryCode] = cities[countryCode].filter(([_name, population]) => population > 0);
-    }
+    const cities = await loadCitiesData(progressBar);
 
     loading.classList.add('hide');
     app.classList.remove('hide');
 
+    /**
+     * @type {Game}
+     */
     const game = {
         countryCodes,
         countries,
         cities,
         difficultyLevel: 0,
-        city: {
-            name: '',
-            population: 0,
-        },
+        cityName: '',
+        cityPopulations: [],
         countryCode: '',
         countryName: '',
-        /**
-         * Most recent goes first
-         * @type {{
-         *     city: { name: string, population: string },
-         *     country: { code: string, name: string },
-         *     guessedCountryName: string,
-         *     correct: boolean,
-         * }[]}
-         */
-        previousGuesses: [],
+        guesses: [],
         elements: {
             difficultyInput,
             countryInput,

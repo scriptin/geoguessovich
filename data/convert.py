@@ -2,6 +2,16 @@
 
 import csv
 import json
+import ctypes
+
+
+def fast_hash(s):
+    return str(ctypes.c_uint64(hash(s)).value)
+
+
+def clean_data(arr):
+    return [arr[1], arr[2]]
+
 
 with open('countries.json') as countries_f:
     countries = json.load(countries_f)
@@ -11,19 +21,28 @@ with open('countries.json') as countries_f:
     with open('worldcities.csv', newline='') as cities_f:
         reader = csv.DictReader(cities_f)
         for row in reader:
-            code = row['iso2'].lower()
-            if code in country_codes:
-                name = row['city']
-                population = 0
-                try:
-                    population = int(float(row['population']))
-                except:
-                    print(f'Could not parse population of {name} ({code}) - skipping')
+            country_code = row['iso2'].lower()
+            if country_code not in country_codes:
+                continue
+            city_name = row['city']
+            city_hash = fast_hash(city_name)
+            bucket = city_hash[0]
+            if bucket not in result.keys():
+                result[bucket] = {}
+            if city_hash not in result[bucket].keys():
+                result[bucket][city_hash] = []
+            try:
+                population = int(float(row['population']))
                 if population > 0:
-                    if code not in result.keys():
-                        result[code] = []
-                    result[code].append([name, population])
-    for code in country_codes:
-        if code in result.keys():
-            with open(f'cities/{code}.json', 'w') as out_f:
-                json.dump(result[code], out_f)
+                    result[bucket][city_hash].append([city_name, population, country_code])
+            except:
+                print(f'Could not parse population of {city_name} ({country_code}) - skipping')
+    for bucket in result.keys():
+        part = result[bucket]
+        data = {}
+        for city_data in part.values():
+            if len(city_data) > 0:
+                city_name = city_data[0][0]
+                data[city_name] = list(map(clean_data, city_data))
+        with open(f'cities/{bucket}.json', 'w') as out_f:
+            json.dump(data, out_f)

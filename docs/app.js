@@ -280,43 +280,39 @@ function formatPopulation(population) {
     return population.toString();
 }
 
-function unique(sortedValues) {
-    const result = [];
-    for (let value of sortedValues) {
-        if (result.length === 0 || result[result.length - 1] !== value) {
-            result.push(value);
-        }
-    }
-    return result;
-}
-
 /**
  * @param names {string[]}
  * @return {string}
  */
 function formatCountryNames(names) {
-    const sorted = unique(names.sort());
-    if (sorted.length === 1) {
-        return sorted[0];
-    }
-    if (sorted.length === 2) {
-        return `${sorted[0]} or ${sorted[1]}`;
-    }
-    if (sorted.length > 2) {
-        let result = '';
-        let i = 0;
-        while (i < sorted.length) {
-            let separator = ', ';
-            if (i === sorted.length - 2) {
-                separator = ', or ';
-            } else if (i === sorted.length - 1) {
-                separator = '';
+    const sorted = [...names].sort();
+    let result = [];
+    for (let name of sorted) {
+        if (result.length === 0 ) {
+            result.push([name, 1]);
+        } else {
+            const lastIndex = result.length - 1;
+            const [lastName, lastCount] = result[lastIndex];
+            if (lastName === name) {
+                result[lastIndex] = [name, lastCount + 1]
+            } else {
+                result.push([name, 1]);
             }
-            result += sorted[i] + separator;
-            i++;
         }
-        return result;
     }
+    let concatenated = '';
+    let i = 0;
+    while (i < result.length) {
+        let separator = ', ';
+        if (i === result.length - 2) {
+            separator = ', or ';
+        } else if (i === result.length - 1) {
+            separator = '';
+        }
+        concatenated += result[i][0] + (result[i][1] > 1 ? ` (${result[i][1]} cities)` : '') + separator;
+        i++;
+    }
+    return concatenated;
 }
 
 /**
